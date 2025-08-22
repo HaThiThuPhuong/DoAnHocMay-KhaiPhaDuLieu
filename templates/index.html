@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dự đoán cơn động kinh</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+      <h1>Dự đoán cơn động kinh</h1>
+      <form id="upload-form" enctype="multipart/form-data">
+          <input type="file" name="file" accept=".csv" required placeholder="Nhập file csv thông tin bệnh  nhân">
+          <button type="submit">Dự đoán</button>
+      </form>
+      <div id="results">
+          <a id="download-button" style="display: none;">Tải xuống kết quả dự đoánđoán</a>
+          <table id="results-table" style="display: none; margin-top: 20px; border-collapse: collapse; width: 100%;">
+              <thead>
+                  <tr>
+                      <!-- Headers will be added dynamically -->
+                  </tr>
+              </thead>
+              <tbody>
+                  <!-- Data rows will be added dynamically -->
+              </tbody>
+          </table>
+      </div>
+  </div>
+  <script>
+      const form = document.getElementById('upload-form');
+      const downloadButton = document.getElementById('download-button');
+      const resultsTable = document.getElementById('results-table');
+      const resultsTableHead = resultsTable.querySelector('thead tr');
+      const resultsTableBody = resultsTable.querySelector('tbody');
+
+      let downloadUrl = null;
+
+      form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+
+    const response = await fetch('/predict', {
+        method: 'POST',
+        body: formData
+    });
+
+    if (response.ok) {
+        const blob = await response.blob();
+        downloadUrl = window.URL.createObjectURL(blob);
+
+        // Hiển thị nút download
+        downloadButton.style.display = 'block';
+        downloadButton.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = 'output_with_results.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Đọc dữ liệu CSV và hiển thị trên bảng
+        const text = await blob.text();
+        const rows = text.split('\n').map(row => row.split(','));
+
+        // Xóa bảng cũ
+        resultsTableHead.innerHTML = '';
+        resultsTableBody.innerHTML = '';
+
+        // Thêm headers (chỉ 2 cột đầu tiên)
+        rows[0].slice(0, 2).forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header.trim();
+            th.style.border = '1px solid #ddd';
+            th.style.padding = '8px';
+            resultsTableHead.appendChild(th);
+        });
+
+        // Thêm dữ liệu (chỉ 2 cột đầu tiên)
+        rows.slice(1).forEach(row => {
+            if (row.length > 1) { // Bỏ qua dòng trống
+                const tr = document.createElement('tr');
+                row.slice(0, 2).forEach(cell => { // Lấy 2 cột đầu tiên
+                    const td = document.createElement('td');
+                    td.textContent = cell.trim();
+                    td.style.border = '1px solid #ddd';
+                    td.style.padding = '8px';
+                    tr.appendChild(td);
+                });
+                resultsTableBody.appendChild(tr);
+            }
+        });
+
+        // Hiển thị bảng
+        resultsTable.style.display = 'table';
+    } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+    }
+});
+
+  </script>
+</body>
+</html>
